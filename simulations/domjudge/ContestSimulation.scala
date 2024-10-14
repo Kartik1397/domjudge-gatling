@@ -71,15 +71,15 @@ class ContestSimulation extends Simulation {
     .exec(Team.teampage).pause(5)
 
   setUp(teamScenario.inject(
-      atOnceUsers(1) // start with 1 users
+      atOnceUsers(200) // start with 1 users
 			// atOnceUsers(100) // start with 100 users
             //constantUsersPerSec(5) during (30 seconds) randomized  // gets to ~150 users in 30seconds
       //      constantUsersPerSec(18) during (60 seconds) randomized  // gets to ~1000(ish) users in 60seconds
-			//rampUsers(500) over (60 seconds)
+			// rampUsers(500)
 
       // Use with the throttle commands below
       //constantUsersPerSec(30) during (45 seconds) // 1350 users?
-  ), spectatorScenario.inject(atOnceUsers(1)))
+  ), spectatorScenario.inject(atOnceUsers(200)))
     /*.throttle(
       jumpToRps(20).holdFor(2 minutes)
     )*/
@@ -89,10 +89,11 @@ class ContestSimulation extends Simulation {
       // reachRps(5) in (30 seconds),
       // reachRps(10) in (30 seconds),
       // reachRps(25) in (30 seconds),
-      reachRps(50) in (30 seconds),
-      holdFor(1 minute),
-      reachRps(100) in (30 seconds),
+      reachRps(50) in (3 seconds),
       // holdFor(1 minute),
+      reachRps(500) in (30 seconds),
+      reachRps(1000) in (30 seconds),
+      holdFor(5 minute),
       // reachRps(150) in (30 seconds),
       // holdFor(1 minute),
       // reachRps(200) in (30 seconds),

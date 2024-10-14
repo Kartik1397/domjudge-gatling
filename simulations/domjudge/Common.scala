@@ -69,10 +69,10 @@ object Team {
         .saveAs("csrftoken")
         ,
         // get and save the problem id for the "hello" problem
-        regex("""<option value="([^"]*)">hello""")
+        regex("""<option value="([^"]*)">A - Hello World""")
         .saveAs("problem_id")
     ))
-    .exec(http("Submit Solution ${langid}")
+    .exec(http("Submit Solution")
       .post("/team/submit")
       .formParam("submit_problem[_token]","${csrftoken}")
       .formParam("submit_problem[problem]","${problem_id}")
@@ -152,4 +152,96 @@ object Jury {
   // TODO: add jury members browsing around/answering clarifications/etc
   // def view_submissions = ...
 
+  // Sets the session value "contest_id" with the resulting contest id(to be used when uploading a problem)
+  def create_contest(shortname: String = "test", name: String = "gatling test contest"): ChainBuilder = {
+    val contestformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
+    return exec(http("Check if contest already exists")
+      .get("/jury/contests")
+      .check(
+        regex("""id=(.*?)">""" + shortname).optional.saveAs("contest_id")
+      )
+    )
+    .doIf(session => session("contest_id").asOption[Any].isDefined) {
+      exec(http("Delete existing contest")
+        .post("/jury/delete")
+        .formParam("table", "contest")
+        .formParam("cid", "${contest_id}")
+        .formParam("confirm", "Yes I'm sure!")
+      )
+    }
+    .exec(http("Create Contest")
+      .post("/jury/contests/add")
+      .formParam("data[0][shortname]", shortname)
+      .formParam("data[0][name]", name)
+      .formParam("data[0][activatetime_string]", "-00:00")
+      .formParam("data[0][starttime_string]", contestformat.format(Calendar.getInstance().getTime()) + " America/New_York")
+      .formParam("data[0][freezetime_string]", "+99:00")
+      .formParam("data[0][endtime_string]", "+99:00")
+      .formParam("data[0][unfreezetime_string]", "+99:00")
+      .formParam("data[0][deactivatetime_string]", "+99:00")
+      .formParam("data[0][process_balloons]", "1")
+      .formParam("data[0][public]", "1")
+      .formParam("data[0][mapping][1][items]", "")
+      .formParam("data[0][enabled]", "1")
+      .formParam("problems", "")
+      .formParam("data[0][mapping][0][items]", "")
+      .formParam("data[0][mapping][0][fk][0]", "cid")
+      .formParam("data[0][mapping][0][fk][1]", "probid")
+      .formParam("data[0][mapping][0][table]", "contestproblem")
+      .formParam("data[0][mapping][1][fk][0]", "cid")
+      .formParam("data[0][mapping][1][fk][1]", "teamid")
+      .formParam("data[0][mapping][1][table]", "contestteam")
+      .formParam("cmd", "add")
+      .formParam("table", "contest")
+      .formParam("referrer", "")
+    ).exec(http("Get Contest")
+      .get("/jury/contests")
+      .check(
+        regex("""id=(.*?)">""" + shortname).find.saveAs("contest_id")
+      )
+    )
+  }
+
+// call as one of the following
+// exec(Jury.upload_problem("hello-testcase.zip"))
+// exec(Jury.upload_problem("hello-testcase.zip", session => session("contest_id").as[String]))
+  def upload_problem(problem_archive: String, contest_id: Expression[String] = null): ChainBuilder = {
+    val default:Expression[String] = session => session("contest_id").as[String]
+    val cid = contest_id match {	case a:Expression[String] => a;	case _ => default }
+    return exec(http("Upload Problem")
+        .post("/jury/problem")
+        .formParam("contest", session => cid(session))
+        .formParam("upload", "Upload")
+        .formUpload("problem_archive[]", problem_archive))
+  }
+
+  // Takes in a Map("config_item_name" -> "config_value") of new configuration values to apply.
+  // All other options will remain unchanged
+  def modify_config(config: Map[String,String]) =
+    exec(http("Load Current Configuration")
+      .get("/jury/config")
+      .check(
+        regex("""<input.*name="config_(.*?)".*value="(.*?)".*>""").ofType[(String,String)].findAll.saveAs("current_config")
+      )
+    ).exec(http("Update Configuration")
+          .post("/jury/config")
+          .formParam("save", "Save")
+          .formParamMap(session => session("current_config").as[List[(String,String)]].toMap ++ config))
+
+  // Expects to be called like:
+  // Jury.enable_language("C#","csharp",)
+  def enable_language(lang: String, langid: String, extensions: List[String]) =
+		exec(http("Enable $langid")
+			.post("/jury/edit")
+			.formParam("keydata[0][langid]", langid)
+			.formParam("data[0][name]", lang)
+			.formParam("data[0][allow_submit]", "1")
+			.formParam("data[0][allow_judge]", "1")
+			.formParam("data[0][time_factor]", "1")
+			.formParam("data[0][compile_script]", langid)
+			.formParam("data[0][extensions]", "[\""+ extensions.mkString("\", \"") + "\"]")
+			.formParam("cmd", "edit")
+			.formParam("table", "language")
+			.formParam("referrer", "languages"))
 }

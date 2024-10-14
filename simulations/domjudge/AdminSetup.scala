@@ -15,7 +15,7 @@ class AdminSetup extends Simulation {
         .inferHtmlResources()
 
   val scn = scenario("AdminSetup")
-        .exec(User.login("admin"))
+        .exec(User.login("admin", "***"))
         .exec(Jury.modify_config(Map("config_allow_registration"->"1")))
         .exec(Jury.create_contest("gatling","Gatling Test Contest"))
         .exec(Jury.enable_language("c#",      "csharp", List("csharp","cs")   ))
